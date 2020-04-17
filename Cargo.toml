@@ -1,0 +1,11 @@
+[package]
+name = "ld_framework"
+version = "0.1.0"
+authors = ["Ian Kettlewell <ian.kettlewell@gmail.com>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+kettlewin = { git = "https://github.com/kettle11/kettlewin" }
+glow = {git = "https://github.com/grovesNL/glow"}
