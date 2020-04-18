@@ -29,9 +29,25 @@ pub struct Vector2 {
     pub y: f32,
 }
 
+impl From<[f32; 2]> for Vector2 {
+    fn from(v: [f32; 2]) -> Self {
+        Vector2 { x: v[0], y: v[1] }
+    }
+}
+
 impl Vector2 {
     pub fn new(x: f32, y: f32) -> Self {
         Self { x, y }
+    }
+
+    #[inline]
+    pub fn dot(a: Vector2, b: Vector2) -> f32 {
+        a.x * b.x + a.y * b.y
+    }
+
+    #[inline]
+    pub fn length(self) -> f32 {
+        Vector2::dot(self, self).sqrt()
     }
 }
 
@@ -145,6 +161,16 @@ pub struct Vector3 {
     pub x: f32,
     pub y: f32,
     pub z: f32,
+}
+
+impl From<[f32; 3]> for Vector3 {
+    fn from(v: [f32; 3]) -> Self {
+        Vector3 {
+            x: v[0],
+            y: v[1],
+            z: v[2],
+        }
+    }
 }
 
 impl Neg for Vector3 {
