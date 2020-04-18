@@ -56,11 +56,14 @@ impl ShaderProgram {
     pub fn set_matrix(&self, gl: &GL, name: &str, m: &Matrix4x4) {
         unsafe {
             let location = gl.get_uniform_location(self.program, name);
-            gl.uniform_matrix_4_f32_slice(
-                location.as_ref(),
-                false,
-                &m.0,
-            );
+            gl.uniform_matrix_4_f32_slice(location.as_ref(), false, &m.0);
+        }
+    }
+
+    pub fn set_color(&self, gl: &GL, name: &str, color: &Color) {
+        unsafe {
+            let location = gl.get_uniform_location(self.program, name);
+            gl.uniform_4_f32(location.as_ref(), color.r, color.g, color.b, color.a);
         }
     }
 }

@@ -5,7 +5,11 @@ pub type GL = Context;
 
 pub fn setup(window: &Window) -> (GLContext, Context) {
     // Create a GLContext
+    #[cfg(target_arch = "wasm32")]
     let mut gl_context = GLContext::new().webgl1().build().unwrap();
+
+    #[cfg(not(target_arch = "wasm32"))]
+    let mut gl_context = GLContext::new().build().unwrap();
 
     // Assign the GLContext's window.
     gl_context.set_window(Some(window)).unwrap();
