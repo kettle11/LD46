@@ -24,6 +24,44 @@ fn produce_end_cap(
         indices.push([start, new_vertex - 1, new_vertex]);
     }
 }
+
+pub fn update_mesh_with_circle(
+    gl: &GL,
+    mesh: &mut Mesh,
+    center: Vector3,
+    radius: f32,
+    resolution: u32, // Number of sides
+) {
+    let mut vertices = Vec::new();
+    let mut indices = Vec::new();
+
+    let start = vertices.len() as u32;
+
+    vertices.push(center);
+
+    let increment = (crate::zmath::PI * 2.0) / resolution as f32;
+    let mut current_angle = increment;
+
+    let right = Vector3::RIGHT * radius;
+    let forward = Vector3::UP * radius;
+
+    for i in 0..resolution {
+        current_angle += increment;
+
+        let new_vertex = vertices.len() as u32;
+        let dir = Vector3::new(current_angle.cos(), current_angle.sin(), 0.0).normal();
+        vertices.push(center + dir * radius);
+
+        if i > 0 {
+            indices.push([start, new_vertex, new_vertex - 1]);
+        }
+    }
+
+    indices.push([start, 1, (vertices.len() - 1) as u32]);
+
+    mesh.update(gl, &vertices, &indices);
+}
+
 /// Pass in an array where every two lines is a line segment
 pub fn update_mesh_with_line(
     gl: &GL,

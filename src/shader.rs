@@ -6,7 +6,7 @@ pub struct ShaderProgram {
 fn compile_shader(gl: &Context, shader_type: u32, source: &str) -> <Context as HasContext>::Shader {
     #[cfg(all(target_arch = "wasm32"))]
     let version = ""; // No version for WebGL1
-    // let version = "#version 300 es";
+                      // let version = "#version 300 es";
     #[cfg(all(not(target_arch = "wasm32")))]
     let version = "#version 410";
 
@@ -50,6 +50,17 @@ impl ShaderProgram {
     pub fn use_program(&self, gl: &GL) {
         unsafe {
             gl.use_program(Some(self.program));
+        }
+    }
+
+    pub fn set_matrix(&self, gl: &GL, name: &str, m: &Matrix4x4) {
+        unsafe {
+            let location = gl.get_uniform_location(self.program, name);
+            gl.uniform_matrix_4_f32_slice(
+                location.as_ref(),
+                false,
+                &m.0,
+            );
         }
     }
 }

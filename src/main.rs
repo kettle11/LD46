@@ -54,11 +54,19 @@ async fn run(app: Application, mut events: Events) {
     let mut last_position: Option<Vector2> = None;
     let mut mouse_down = false;
     let mut mouse_position = Vector2::new(0., 0.);
+
+    let mut circle = Mesh::new(&gl);
+    lines::update_mesh_with_circle(&gl, &mut circle, Vector3::ZERO, 0.2, 30);
+
+    let mut projection = mat4_orthographic(-1.0, 1.0, -1.0, 1.0, 0.0, 1.0);
+    let mut camera_view = Matrix4x4::IDENTITY;
+
     loop {
         let event = events.next_event().await;
         match event {
             Event::WindowCloseRequested { .. } => app.quit(),
             Event::MouseMoved { x, y, .. } => {
+                // When the mouse check if the mouse drawing should be updated.
                 mouse_position = Vector2::new(x, y);
                 if mouse_down {
                     let mouse_pos = screen_to_gl(
@@ -111,7 +119,6 @@ async fn run(app: Application, mut events: Events) {
             Event::WindowResized { width, height, .. } => unsafe {
                 screen_width = width;
                 screen_height = height;
-                log!("RESIZED");
                 gl.viewport(0, 0, width as i32, height as i32);
             },
             Event::Draw { .. } => {
@@ -120,10 +127,23 @@ async fn run(app: Application, mut events: Events) {
                     gl.clear_color(0.3765, 0.3137, 0.8627, 1.0);
                     gl.clear(COLOR_BUFFER_BIT | DEPTH_BUFFER_BIT);
                 }
+
                 shader_program.use_program(&gl);
+
+                // Bind the camera's view and projection
+                shader_program.set_matrix(&gl, "u_view", &camera_view);
+                shader_program.set_matrix(&gl, "u_projection", &projection);
+
+                // First render the line
+                shader_program.set_matrix(&gl, "u_model", &Matrix4x4::IDENTITY);
                 line_mesh.draw(&gl);
-                // quad.draw(&gl);
+
+                // Then render the circle
+                shader_program.set_matrix(&gl, "u_model", &Matrix4x4::IDENTITY);
+                circle.draw(&gl);
+
                 // Finally display what we've drawn.
+                // Since we're using web this happens automatically, but on desktop this call is required.
                 gl_context.swap_buffers();
                 window.request_redraw();
             }
