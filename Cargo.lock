@@ -13,6 +13,16 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4785bdd1c96b2a846b2bd7cc02e86b6b3dbf14e7e53446c4f54c92a361040822"
 
 [[package]]
+name = "console_error_panic_hook"
+version = "0.1.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b8d976903543e0c48546a91908f21588a680a8c8f984df9a5d69feccb2b2a211"
+dependencies = [
+ "cfg-if",
+ "wasm-bindgen",
+]
+
+[[package]]
 name = "gl_generator"
 version = "0.14.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -47,7 +57,7 @@ dependencies = [
 [[package]]
 name = "kettlewin"
 version = "0.1.0"
-source = "git+https://github.com/kettle11/kettlewin#434e60f8ad9467404b4b9030f80cdaffaf3c64c4"
+source = "git+https://github.com/kettle11/kettlewin#3481caf08f2d74f4d5ca598ffcc13d3ab3081013"
 dependencies = [
  "kettlewin_gl_context",
  "kettlewin_platform_macos",
@@ -58,7 +68,7 @@ dependencies = [
 [[package]]
 name = "kettlewin_gl_context"
 version = "0.1.0"
-source = "git+https://github.com/kettle11/kettlewin#434e60f8ad9467404b4b9030f80cdaffaf3c64c4"
+source = "git+https://github.com/kettle11/kettlewin#3481caf08f2d74f4d5ca598ffcc13d3ab3081013"
 dependencies = [
  "kettlewin_platform_common",
  "objc",
@@ -71,7 +81,7 @@ dependencies = [
 [[package]]
 name = "kettlewin_platform_common"
 version = "0.1.0"
-source = "git+https://github.com/kettle11/kettlewin#434e60f8ad9467404b4b9030f80cdaffaf3c64c4"
+source = "git+https://github.com/kettle11/kettlewin#3481caf08f2d74f4d5ca598ffcc13d3ab3081013"
 dependencies = [
  "raw-window-handle",
 ]
@@ -79,7 +89,7 @@ dependencies = [
 [[package]]
 name = "kettlewin_platform_macos"
 version = "0.1.0"
-source = "git+https://github.com/kettle11/kettlewin#434e60f8ad9467404b4b9030f80cdaffaf3c64c4"
+source = "git+https://github.com/kettle11/kettlewin#3481caf08f2d74f4d5ca598ffcc13d3ab3081013"
 dependencies = [
  "kettlewin_platform_common",
  "objc",
@@ -88,7 +98,7 @@ dependencies = [
 [[package]]
 name = "kettlewin_platform_web"
 version = "0.1.0"
-source = "git+https://github.com/kettle11/kettlewin#434e60f8ad9467404b4b9030f80cdaffaf3c64c4"
+source = "git+https://github.com/kettle11/kettlewin#3481caf08f2d74f4d5ca598ffcc13d3ab3081013"
 dependencies = [
  "kettlewin_platform_common",
  "wasm-bindgen",
@@ -98,7 +108,7 @@ dependencies = [
 [[package]]
 name = "kettlewin_platform_windows"
 version = "0.1.0"
-source = "git+https://github.com/kettle11/kettlewin#434e60f8ad9467404b4b9030f80cdaffaf3c64c4"
+source = "git+https://github.com/kettle11/kettlewin#3481caf08f2d74f4d5ca598ffcc13d3ab3081013"
 dependencies = [
  "kettlewin_platform_common",
 ]
@@ -119,8 +129,13 @@ checksum = "e2abad23fbc42b3700f2f279844dc832adb2b2eb069b2df918f455c4e18cc646"
 name = "ld_framework"
 version = "0.1.0"
 dependencies = [
+ "console_error_panic_hook",
  "glow",
+ "js-sys",
  "kettlewin",
+ "wasm-bindgen",
+ "wasm-bindgen-futures",
+ "web-sys",
 ]
 
 [[package]]
@@ -229,6 +244,18 @@ dependencies = [
  "quote",
  "syn",
  "wasm-bindgen-shared",
+]
+
+[[package]]
+name = "wasm-bindgen-futures"
+version = "0.4.10"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7add542ea1ac7fdaa9dc25e031a6af33b7d63376292bd24140c637d00d1c312a"
+dependencies = [
+ "cfg-if",
+ "js-sys",
+ "wasm-bindgen",
+ "web-sys",
 ]
 
 [[package]]

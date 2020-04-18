@@ -1,9 +1,11 @@
 use glow::*;
 use kettlewin::*;
 
+pub type GL = Context;
+
 pub fn setup(window: &Window) -> (GLContext, Context) {
     // Create a GLContext
-    let mut gl_context = GLContext::new().build().unwrap();
+    let mut gl_context = GLContext::new().webgl1().build().unwrap();
 
     // Assign the GLContext's window.
     gl_context.set_window(Some(window)).unwrap();

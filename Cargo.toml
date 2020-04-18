@@ -9,3 +9,24 @@ edition = "2018"
 [dependencies]
 kettlewin = { git = "https://github.com/kettle11/kettlewin" }
 glow = {git = "https://github.com/grovesNL/glow"}
+
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+wasm-bindgen-futures = "0.4.10"
+wasm-bindgen = "0.2.60"
+js-sys = "0.3.37"
+console_error_panic_hook = "0.1.6"
+
+[target.'cfg(target_arch = "wasm32")'.dependencies.web-sys]
+web-sys = "0.3.37"
+features = [
+    "console",
+    "Document",
+    "HtmlElement",
+    "HtmlImageElement",
+    "HtmlCanvasElement",
+    "MouseEvent",
+    "KeyboardEvent",
+    "Event",
+    "WebGlContextAttributes",
+    "Window"
+]
