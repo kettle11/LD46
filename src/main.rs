@@ -18,6 +18,12 @@ mod zmath;
 use lines::*;
 use zmath::*;
 
+use wasm_bindgen::{prelude::*, JsCast};
+use wasm_bindgen_futures::JsFuture;
+#[wasm_bindgen(module = "/src/helpers.js")]
+extern "C" {
+    fn download(path: &str, text: &str);
+}
 fn main() {
     #[cfg(target_arch = "wasm32")]
     console_error_panic_hook::set_once();
@@ -68,9 +74,7 @@ struct Level {
 
 impl Level {
     pub fn reset(&mut self) {
-        for collectible in &mut self.collectibles {
-            collectible.collected = false;
-        }
+        self.collectibles.clear();
     }
 }
 
@@ -147,10 +151,12 @@ struct MouseState {
     position: Vector2,
     frame: u32,
     mouse_up: bool,
+    collectible_place: bool,
 }
 
 struct MousePlayback {
     state: Vec<MouseState>,
+    current_frame: u32,
     current_state: usize,
     current_frame_recording: u32,
     playing: bool,
@@ -163,6 +169,7 @@ impl MousePlayback {
             current_state: 0,
             current_frame_recording: 0,
             playing: false,
+            current_frame: 0,
         }
     }
 
@@ -170,11 +177,21 @@ impl MousePlayback {
         self.current_frame_recording += 1;
     }
 
+    pub fn record_collectible(&mut self, position: Vector2) {
+        self.state.push(MouseState {
+            position,
+            frame: self.current_frame_recording,
+            mouse_up: false,
+            collectible_place: true,
+        });
+    }
+
     pub fn record_mouse(&mut self, position: Vector2) {
         self.state.push(MouseState {
             position,
             frame: self.current_frame_recording,
             mouse_up: false,
+            collectible_place: false,
         });
     }
 
@@ -183,25 +200,110 @@ impl MousePlayback {
             position: Vector2::new(0., 0.),
             frame: self.current_frame_recording,
             mouse_up: true,
+            collectible_place: false,
         });
     }
 
     pub fn reset_playback(&mut self) {
+        self.current_frame = 0;
         self.current_state = 0;
     }
 
-    pub fn playback(&mut self, frames: u32, lines: &mut Lines) {
-        // This isn't quite right.
-        if self.current_state < self.state.len() {
-            let target_frame = self.state[self.current_state].frame + frames;
+    pub fn save(&self) {
+        let mut string = String::new();
+        for s in &self.state {
+            if s.mouse_up {
+                string += "a"; // a is mouseup
+                string += " ";
+            } else if s.collectible_place {
+                string += "b"; // b is collectible place
+                string += " ";
+                string += &s.position.x.to_string();
+                string += " ";
+                string += &s.position.y.to_string();
+                string += " ";
+            } else {
+                string += &s.position.x.to_string();
+                string += " ";
+                string += &s.position.y.to_string();
+                string += " ";
+            }
+            string += &s.frame.to_string();
+            string += " ";
+        }
+        download("level.txt", &string);
+    }
 
+    pub fn load(&mut self, s: &str) {
+        self.state.clear();
+        let mut s = s.split(" ").peekable();
+
+        while let Some(_) = s.peek() {
+            let first = s.next().unwrap();
+
+            match first {
+                "a" => {
+                    let frame = s.next().unwrap().parse().unwrap();
+
+                    // Mouse up
+                    self.state.push(MouseState {
+                        position: Vector2::new(0.0, 0.0),
+                        frame,
+                        mouse_up: true,
+                        collectible_place: false,
+                    })
+                }
+                "b" => {
+                    // Collectible
+                    let x = s.next().unwrap().parse().unwrap();
+                    let y = s.next().unwrap().parse().unwrap();
+                    let frame = s.next().unwrap().parse().unwrap();
+
+                    self.state.push(MouseState {
+                        position: Vector2::new(x, y),
+                        frame,
+                        mouse_up: false,
+                        collectible_place: true,
+                    })
+                }
+                "" => {}
+                _ => {
+                    let x = first.parse().unwrap();
+                    let y = s.next().unwrap().parse().unwrap();
+                    let frame = s.next().unwrap().parse().unwrap();
+                    self.state.push(MouseState {
+                        position: Vector2::new(x, y),
+                        frame,
+                        mouse_up: false,
+                        collectible_place: false,
+                    })
+                }
+            }
+        }
+    }
+
+    pub fn playback(&mut self, frames: u32, lines: &mut Lines, level: &mut Level) {
+        if self.current_state < self.state.len() {
+            if self.current_state == 0 {
+                lines.end_segment();
+                self.current_frame = self.state[self.current_state].frame; // Skip beginning delay.
+            }
+
+            self.current_frame += frames;
             while self.current_state < self.state.len()
-                && self.state[self.current_state].frame < target_frame
+                && self.state[self.current_state].frame < self.current_frame
             {
                 let current_state = &self.state[self.current_state];
                 // Play next action
                 let position = current_state.position;
-                if current_state.mouse_up {
+                if current_state.collectible_place {
+                    level.collectibles.push(Collectible {
+                        position: Vector3::new(position.x, position.y, 0.0),
+                        color: Color::new(1.0, 1.0, 1.0, 1.0),
+                        radius: 0.015,
+                        collected: false,
+                    })
+                } else if current_state.mouse_up {
                     lines.end_segment();
                 } else {
                     lines.add_segment(Vector3::new(position.x, position.y, 0.0));
@@ -322,6 +424,9 @@ async fn run(app: Application, mut events: Events) {
     let mut mouse_playback = MousePlayback::new();
     let mut recording = true;
 
+    let level_string = include_str!("levels/test.txt");
+    mouse_playback.load(&level_string);
+    mouse_playback.playing = true;
     loop {
         let event = events.next_event().await;
         match event {
@@ -352,6 +457,8 @@ async fn run(app: Application, mut events: Events) {
                 ..
             } => {
                 let mouse_pos = screen_to_world(x, y, &camera, screen_width, screen_height);
+                mouse_playback.record_collectible(Vector2::new(mouse_pos.x, mouse_pos.y));
+
                 level.collectibles.push(Collectible {
                     position: mouse_pos,
                     color: white,
@@ -383,6 +490,10 @@ async fn run(app: Application, mut events: Events) {
                 lines.clear();
                 mouse_playback.reset_playback();
                 mouse_playback.playing = true;
+                level.reset();
+            }
+            Event::KeyDown { key: Key::S, .. } => {
+                mouse_playback.save();
             }
             Event::KeyDown { key: Key::E, .. } => {
                 lines.clear();
@@ -391,6 +502,9 @@ async fn run(app: Application, mut events: Events) {
             Event::KeyDown { key: Key::R, .. } => {
                 ball.position = start_position;
                 ball.velocity = Vector3::ZERO;
+                lines.clear();
+                mouse_playback.reset_playback();
+                mouse_playback.playing = true;
                 level.reset();
             }
             Event::WindowResized { width, height, .. } => unsafe {
@@ -410,7 +524,7 @@ async fn run(app: Application, mut events: Events) {
             Event::Draw { .. } => {
                 mouse_playback.increment_frame();
                 if mouse_playback.playing {
-                    mouse_playback.playback(1, &mut lines);
+                    mouse_playback.playback(2, &mut lines, &mut level);
                 }
                 // First update physics
                 ball.ball_physics(&lines.line_points);
