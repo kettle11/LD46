@@ -236,6 +236,7 @@ async fn run(app: Application, mut events: Events) {
     let mut user_lines = Lines::new(&gl);
 
     let level_string = [
+        include_str!("levels/clouds.txt"),
         include_str!("levels/start.txt"),
         include_str!("levels/city.txt"),
         include_str!("levels/mountain_forest.txt"),
@@ -442,7 +443,7 @@ async fn run(app: Application, mut events: Events) {
                 }
                 mouse_playback.increment_frame();
                 if mouse_playback.playing {
-                    mouse_playback.playback(8, &mut lines, &mut level);
+                    mouse_playback.playback(4, &mut lines, &mut level);
                 }
                 // First update physics
                 if level.setup && ball.moving {
