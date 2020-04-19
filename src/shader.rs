@@ -60,6 +60,13 @@ impl ShaderProgram {
         }
     }
 
+    pub fn set_float(&self, gl: &GL, name: &str, f: f32) {
+        unsafe {
+            let location = gl.get_uniform_location(self.program, name);
+            gl.uniform_1_f32(location.as_ref(), f);
+        }
+    }
+
     pub fn set_color(&self, gl: &GL, name: &str, color: &Color) {
         unsafe {
             let location = gl.get_uniform_location(self.program, name);
