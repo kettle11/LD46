@@ -238,17 +238,11 @@ async fn run(app: Application, mut events: Events) {
     let level_string = [
         include_str!("levels/start.txt"),
         include_str!("levels/city.txt"),
+        include_str!("levels/mountain_forest.txt"),
+        include_str!("levels/snow.txt"),
     ];
 
     let mut current_level = 0;
-    load_level(
-        &level_string,
-        current_level,
-        &mut level,
-        &mut mouse_playback,
-        &mut lines,
-        &mut user_lines,
-    );
 
     let mut ball = Ball {
         position: level.start_position,
@@ -259,6 +253,15 @@ async fn run(app: Application, mut events: Events) {
         moving: false,
     };
 
+    load_level(
+        &mut ball,
+        &level_string,
+        current_level,
+        &mut level,
+        &mut mouse_playback,
+        &mut lines,
+        &mut user_lines,
+    );
     let mut circle = Mesh::new(&gl);
     lines::update_mesh_with_circle(&gl, &mut circle, Vector3::ZERO, 1.0, 30);
 
@@ -557,6 +560,7 @@ async fn run(app: Application, mut events: Events) {
                     if current_level + 1 < level_string.len() as u32 {
                         current_level += 1;
                         load_level(
+                            &mut ball,
                             &level_string,
                             current_level,
                             &mut level,
@@ -566,6 +570,7 @@ async fn run(app: Application, mut events: Events) {
                         );
                     } else {
                         load_level(
+                            &mut ball,
                             &level_string,
                             current_level,
                             &mut level,
@@ -589,7 +594,7 @@ async fn run(app: Application, mut events: Events) {
 
                 // Kick off level transition
                 if level.complete && !prevent_transition {
-                    log!("HERE");
+                    level.complete = false;
                     fade_out = true;
                 }
 
@@ -620,6 +625,7 @@ fn reset(ball: &mut Ball, level: &mut Level) {
 }
 
 fn load_level(
+    ball: &mut Ball,
     data: &[&str],
     current_level: u32,
     level: &mut Level,
@@ -634,6 +640,7 @@ fn load_level(
     mouse_playback.clear();
     editor::load(mouse_playback, level, data);
     mouse_playback.playing = true;
+    ball.position = level.start_position;
 }
 
 fn screen_to_world(
