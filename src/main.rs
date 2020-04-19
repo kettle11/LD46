@@ -45,18 +45,12 @@ impl Color {
         Self { r, g, b, a }
     }
 }
-struct Ball {
-    position: Vector3,
-    velocity: Vector3,
-    radius: f32,
-    color: Color,
-}
-
 #[derive(Debug)]
 struct Collectible {
     position: Vector3,
     radius: f32,
     color: Color,
+    fade: f32,
     collected: bool,
 }
 
@@ -135,6 +129,16 @@ impl Camera {
 }
 
 const LINE_RADIUS: f32 = 0.01;
+
+struct Ball {
+    position: Vector3,
+    velocity: Vector3,
+    radius: f32,
+    color: Color,
+    fade: f32,
+    moving: bool,
+}
+
 impl Ball {
     fn check_lines(&mut self, points: &[Vector3]) {
         let len = points.len();
@@ -156,7 +160,12 @@ impl Ball {
     }
     // Every two Vector3s in points is a line segment
     fn ball_physics(&mut self, points: &[Vector3], user_lines: &[Vector3]) {
-        self.color = Color::new(1.0, 1.0, 1.0, 1.0);
+        if self.fade > 0.0 {
+            self.fade -= 0.015;
+        } else {
+            self.fade = 0.0;
+        }
+        self.color = Color::new(1.0, 1.0, 1.0, 1.0 - self.fade);
         self.velocity += Vector3::DOWN * 0.0001;
 
         self.check_lines(points);
@@ -172,6 +181,7 @@ impl Ball {
                     < self.radius + collectible.radius
             {
                 log!("COLLECT!");
+                collectible.fade = 1.0;
                 collectible.collected = true;
                 collected_count += 1;
             }
@@ -181,14 +191,6 @@ impl Ball {
             level.collect(collected_count);
         }
     }
-}
-
-fn reset(ball: &mut Ball, level: &mut Level) {
-    ball.position = level.start_position;
-    ball.velocity = Vector3::ZERO;
-
-    // user_lines.clear();
-    level.reset();
 }
 
 // Returns magnitude of distance and the point
@@ -299,7 +301,7 @@ impl MousePlayback {
         self.current_state = 0;
     }
 
-    pub fn save(&self) {
+    pub fn save(&self, level: &Level) {
         let mut string = String::new();
         for s in &self.state {
             if s.mouse_up {
@@ -392,6 +394,7 @@ impl MousePlayback {
                         color: Color::new(1.0, 1.0, 1.0, 1.0),
                         radius: 0.015,
                         collected: false,
+                        fade: 1.0,
                     })
                 } else if current_state.mouse_up {
                     lines.end_segment();
@@ -513,12 +516,14 @@ async fn run(app: Application, mut events: Events) {
     let mut right_mouse_down = false;
     let mut mouse_position = Vector2::new(0., 0.);
 
-    let start_position = Vector3::new(0.0, 1.6, 0.0);
+    let start_position = Vector3::new(0.5, 1.6, 0.0);
     let mut ball = Ball {
         position: start_position,
         velocity: Vector3::ZERO,
         radius: 0.06,
         color: Color::new(1.0, 1.0, 1.0, 1.0),
+        fade: 0.0,
+        moving: false,
     };
 
     let mut circle = Mesh::new(&gl);
@@ -551,8 +556,8 @@ async fn run(app: Application, mut events: Events) {
     let mut mouse_playback = MousePlayback::new();
 
     let level_string = [
-        include_str!("levels/city.txt"),
         include_str!("levels/test.txt"),
+        include_str!("levels/city.txt"),
         include_str!("levels/trees.txt"),
     ];
 
@@ -565,6 +570,14 @@ async fn run(app: Application, mut events: Events) {
         &mut lines,
         &mut user_lines,
     );
+
+    unsafe {
+        gl.enable(BLEND);
+        gl.blend_func(SRC_ALPHA, ONE_MINUS_SRC_ALPHA);
+    }
+
+    let mut transition_out = 0.0;
+    let mut transitioning = false;
     loop {
         let event = events.next_event().await;
         match event {
@@ -606,6 +619,7 @@ async fn run(app: Application, mut events: Events) {
                         color: white,
                         radius: 0.015,
                         collected: false,
+                        fade: 0.0,
                     });
                 }
             }
@@ -651,7 +665,7 @@ async fn run(app: Application, mut events: Events) {
                 level.clear();
             }
             Event::KeyDown { key: Key::S, .. } => {
-                mouse_playback.save();
+                mouse_playback.save(&level);
             }
             Event::KeyDown { key: Key::N, .. } => {
                 level.complete = true;
@@ -671,6 +685,7 @@ async fn run(app: Application, mut events: Events) {
                 key: Key::Space, ..
             } => {
                 reset(&mut ball, &mut level);
+                ball.moving = true;
             }
             Event::WindowResized { width, height, .. } => unsafe {
                 screen_width = width;
@@ -687,6 +702,26 @@ async fn run(app: Application, mut events: Events) {
                 ));
             },
             Event::Draw { .. } => {
+                // Check if the ball placeholder is clicked
+                if level.setup && mouse_down {
+                    let mouse_pos = screen_to_world(
+                        mouse_position.x,
+                        mouse_position.y,
+                        &camera,
+                        screen_width,
+                        screen_height,
+                    );
+                    if (mouse_pos - start_position).length() < ball.radius {
+                        reset(&mut ball, &mut level);
+                        ball.moving = true;
+                    }
+                }
+
+                // Check if the ball is out of the screen bounds
+                if ball.position.x < 0.0 || ball.position.x > 2.2 || ball.position.y < 0.0 {
+                    reset(&mut ball, &mut level);
+                }
+
                 // Check if the ball should be spawned
                 if mouse_playback.complete && !level.setup {
                     ball.position = level.start_position;
@@ -711,10 +746,10 @@ async fn run(app: Application, mut events: Events) {
                 }
                 mouse_playback.increment_frame();
                 if mouse_playback.playing {
-                    mouse_playback.playback(4, &mut lines, &mut level);
+                    mouse_playback.playback(8, &mut lines, &mut level);
                 }
                 // First update physics
-                if level.setup {
+                if level.setup && ball.moving {
                     ball.ball_physics(&lines.line_points, &user_lines.line_points);
                     ball.check_for_collectibles(&mut level);
                 }
@@ -744,6 +779,23 @@ async fn run(app: Application, mut events: Events) {
                 user_lines.update_mesh(&gl);
                 user_lines.mesh.draw(&gl);
 
+                // Render the circle placeholder
+                shader_program.set_matrix(
+                    &gl,
+                    "u_model",
+                    &mat4_from_trs(
+                        start_position,
+                        Quaternion::IDENTITY,
+                        Vector3::new_uniform(ball.radius),
+                    ),
+                );
+                shader_program.set_color(
+                    &gl,
+                    "u_color",
+                    &Color::new(ball.color.r, ball.color.g, ball.color.b, 0.1),
+                );
+                circle.draw(&gl);
+
                 // Then render the circle
                 shader_program.set_matrix(
                     &gl,
@@ -758,25 +810,44 @@ async fn run(app: Application, mut events: Events) {
 
                 circle.draw(&gl);
 
+                circle.draw(&gl);
                 // Draw collectibles
-                for collectible in &level.collectibles {
+                for collectible in &mut level.collectibles {
+                    let color = Color::new(
+                        collectible.color.r,
+                        collectible.color.g,
+                        collectible.color.b,
+                        1.0 - collectible.fade,
+                    );
+                    shader_program.set_matrix(
+                        &gl,
+                        "u_model",
+                        &mat4_from_trs(
+                            collectible.position,
+                            Quaternion::IDENTITY,
+                            Vector3::new_uniform(collectible.radius),
+                        ),
+                    );
                     if !collectible.collected {
-                        shader_program.set_matrix(
+                        if collectible.fade > 0.0 {
+                            collectible.fade -= 0.04;
+                        } else {
+                            collectible.fade = 0.0;
+                        }
+                        shader_program.set_color(&gl, "u_color", &color);
+                    } else {
+                        shader_program.set_color(
                             &gl,
-                            "u_model",
-                            &mat4_from_trs(
-                                collectible.position,
-                                Quaternion::IDENTITY,
-                                Vector3::new_uniform(collectible.radius),
-                            ),
+                            "u_color",
+                            &Color::new(color.r, color.g, color.b, 0.1),
                         );
-                        shader_program.set_color(&gl, "u_color", &ball.color);
-
-                        circle.draw(&gl);
                     }
+                    circle.draw(&gl);
                 }
 
                 if level.complete {
+                    reset_ball(&mut ball, &mut level);
+                    transitioning = true;
                     current_level += 1;
                     load_level(
                         level_string[current_level],
@@ -795,6 +866,21 @@ async fn run(app: Application, mut events: Events) {
             _ => {}
         }
     }
+}
+
+fn reset_ball(ball: &mut Ball, level: &mut Level) {
+    if ball.moving {
+        ball.fade = 1.0;
+    }
+    ball.moving = false;
+    ball.position = level.start_position;
+    ball.velocity = Vector3::ZERO;
+}
+
+fn reset(ball: &mut Ball, level: &mut Level) {
+    reset_ball(ball, level);
+    // user_lines.clear();
+    level.reset();
 }
 
 fn load_level(
