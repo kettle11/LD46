@@ -105,6 +105,8 @@ impl Level {
             self.complete = true;
             log!("Finished level!");
         }
+
+        log!("LEN: {:?}", self.collectibles.len());
     }
 
     pub fn clear(&mut self) {
@@ -233,7 +235,10 @@ async fn run(app: Application, mut events: Events) {
     let mut lines = Lines::new(&gl);
     let mut user_lines = Lines::new(&gl);
 
-    let level_string = [include_str!("levels/start.txt")];
+    let level_string = [
+        include_str!("levels/start.txt"),
+        include_str!("levels/city.txt"),
+    ];
 
     let mut current_level = 0;
     load_level(
@@ -293,8 +298,8 @@ async fn run(app: Application, mut events: Events) {
                 if editor.active {
                     // To avoid accidentally losing work
                     prevent_transition = true;
-                    log!("EDITOR ACTIVE");
                 }
+                log!("EDITOR ACTIVE: {:?}", editor.active);
             }
             Event::KeyDown {
                 key: Key::Digit1, ..
@@ -442,10 +447,6 @@ async fn run(app: Application, mut events: Events) {
                     ball.check_for_collectibles(&mut level);
                 }
 
-                if level.complete && !editor.active {
-                    level.complete = false;
-                }
-
                 // Clear the screen.
                 unsafe {
                     gl.clear_color(19.0 / 255.0, 12.0 / 255.0, 61.0 / 255.0, 1.0);
@@ -552,15 +553,27 @@ async fn run(app: Application, mut events: Events) {
                     fade_in = true;
                     fade_out = false;
                     level_alpha = 0.0;
-                    current_level += 1;
-                    load_level(
-                        &level_string,
-                        current_level,
-                        &mut level,
-                        &mut mouse_playback,
-                        &mut lines,
-                        &mut user_lines,
-                    );
+                    // This is where the actual level transition happen
+                    if current_level + 1 < level_string.len() as u32 {
+                        current_level += 1;
+                        load_level(
+                            &level_string,
+                            current_level,
+                            &mut level,
+                            &mut mouse_playback,
+                            &mut lines,
+                            &mut user_lines,
+                        );
+                    } else {
+                        load_level(
+                            &level_string,
+                            current_level,
+                            &mut level,
+                            &mut mouse_playback,
+                            &mut lines,
+                            &mut user_lines,
+                        );
+                    }
                 }
                 if fade_out {
                     level_alpha -= 0.02;
@@ -576,6 +589,7 @@ async fn run(app: Application, mut events: Events) {
 
                 // Kick off level transition
                 if level.complete && !prevent_transition {
+                    log!("HERE");
                     fade_out = true;
                 }
 

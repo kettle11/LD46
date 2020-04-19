@@ -93,8 +93,13 @@ impl Editor {
                 mouse_playback.erase_rewind();
                 mouse_playback.erase_rewind();
                 mouse_playback.erase_rewind();
+                mouse_playback.erase_rewind();
+                mouse_playback.erase_rewind();
 
                 mouse_playback.play_until_end(level_lines, level);
+                level_lines.end_segment();
+                mouse_playback.record_mouse_up();
+
                 log!("MOUSE PLAYBACK STATE: {:?}", mouse_playback.current_state);
             }
             Event::KeyDown { key: Key::A, .. } => {
