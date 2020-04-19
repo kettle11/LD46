@@ -236,11 +236,27 @@ async fn run(app: Application, mut events: Events) {
     let mut user_lines = Lines::new(&gl);
 
     let level_string = [
-        include_str!("levels/clouds.txt"),
-        include_str!("levels/start.txt"),
-        include_str!("levels/city.txt"),
+        include_str!("levels/level0.txt"),            // Titlescreen
+        include_str!("levels/level0a.txt"),           // Tutorial 1
+        include_str!("levels/level0b.txt"),           // Tutorial 2
+        include_str!("levels/level1.txt"),            // Remember starry nights
+        include_str!("levels/level2.txt"),            // City
+        include_str!("levels/level2b.txt"),           // The cool air
+        include_str!("levels/level3.txt"),            // Big dipper
+        include_str!("levels/breeze.txt"),            // Summer breeze
+        include_str!("levels/icecream.txt"),          // icecream
+        include_str!("levels/dew.txt"),               // Morning dew
+        include_str!("levels/leaves.txt"),            // Leaves rustling
+        include_str!("levels/cool_s.txt"),            // Cool s
+        include_str!("levels/distant_mountains.txt"), // distant mountains
+        include_str!("levels/love.txt"),              // Love
         include_str!("levels/mountain_forest.txt"),
-        include_str!("levels/snow.txt"),
+        include_str!("levels/music.txt"),      // Music
+        include_str!("levels/snowflakes.txt"), // Snowflakes
+        include_str!("levels/squiggles.txt"),  // Squiggles (sort of like phone wire)
+        include_str!("levels/hear.txt"),       // "if you hear this"
+        include_str!("levels/remember.txt"),   // "I hope you remember"
+        include_str!("levels/fin.txt"),        // fin
     ];
 
     let mut current_level = 0;
@@ -443,7 +459,7 @@ async fn run(app: Application, mut events: Events) {
                 }
                 mouse_playback.increment_frame();
                 if mouse_playback.playing {
-                    mouse_playback.playback(4, &mut lines, &mut level);
+                    mouse_playback.playback(8, &mut lines, &mut level);
                 }
                 // First update physics
                 if level.setup && ball.moving {
@@ -597,6 +613,7 @@ async fn run(app: Application, mut events: Events) {
                 if level.complete && !prevent_transition {
                     level.complete = false;
                     fade_out = true;
+                    fade_in = false;
                 }
 
                 // Finally display what we've drawn.
