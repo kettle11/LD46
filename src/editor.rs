@@ -4,6 +4,7 @@ pub struct Editor {
     left_mouse_down: bool,
     right_mouse_down: bool,
     mouse_position: (f32, f32),
+    dragging_start: bool,
     pub active: bool,
 }
 
@@ -14,6 +15,7 @@ impl Editor {
             right_mouse_down: false,
             mouse_position: (0., 0.),
             active: false,
+            dragging_start: false,
         }
     }
 
@@ -32,7 +34,7 @@ impl Editor {
         //  user_lines.clear();
         match event {
             Event::MouseMoved { x, y, .. } => {
-                if self.left_mouse_down {
+                if self.left_mouse_down && !self.dragging_start {
                     let mouse_position =
                         screen_to_world(x, y, &camera, screen_width, screen_height);
                     mouse_playback.record_mouse(Vector2::new(mouse_position.x, mouse_position.y));
@@ -125,19 +127,34 @@ impl Editor {
                 save(&mouse_playback, &level);
             }
             Event::Draw { .. } => {
-                /*
-                if self.right_mouse_down {
-                    let mouse_position = screen_to_world(
+                if self.left_mouse_down {
+                    let mouse_pos = screen_to_world(
                         self.mouse_position.0,
                         self.mouse_position.1,
                         &camera,
                         screen_width,
                         screen_height,
                     );
-
-                    level_lines.erase(mouse_position, 0.06);
+                    if (mouse_pos - level.start_position).length() < 0.05 {
+                        self.dragging_start = true;
+                        log!("DRAGGING START");
+                    }
                 }
-                */
+
+                if self.dragging_start {
+                    let mouse_pos = screen_to_world(
+                        self.mouse_position.0,
+                        self.mouse_position.1,
+                        &camera,
+                        screen_width,
+                        screen_height,
+                    );
+                    level.start_position = mouse_pos;
+                }
+
+                if !self.left_mouse_down {
+                    self.dragging_start = false;
+                }
             }
             _ => {}
         }
@@ -146,6 +163,10 @@ impl Editor {
 
 pub fn save(mouse_playback: &MousePlayback, level: &Level) {
     let mut string = String::new();
+    string += &level.start_position.x.to_string();
+    string += " ";
+    string += &level.start_position.y.to_string();
+    string += " ";
     for s in &mouse_playback.state {
         if s.mouse_up {
             string += "a"; // a is mouseup
@@ -169,10 +190,15 @@ pub fn save(mouse_playback: &MousePlayback, level: &Level) {
     download("level.txt", &string);
 }
 
-pub fn load(mouse_playback: &mut MousePlayback, s: &str) {
+pub fn load(mouse_playback: &mut MousePlayback, level: &mut Level, s: &str) {
     mouse_playback.state.clear();
     let mut s = s.split(" ").peekable();
 
+    level.start_position = Vector3::new(
+        s.next().unwrap().parse().unwrap(),
+        s.next().unwrap().parse().unwrap(),
+        0.,
+    );
     while let Some(_) = s.peek() {
         let first = s.next().unwrap();
 

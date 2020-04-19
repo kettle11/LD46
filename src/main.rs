@@ -224,11 +224,8 @@ async fn run(app: Application, mut events: Events) {
     let mut mouse_playback = MousePlayback::new();
     mouse_playback.playing = true;
 
-    let mut start_position = Vector3::new(0.5, 1.6, 0.0);
-    let start_positions = [Vector3::new(1.0, 1.5, 0.0)];
-
     let mut level = Level::new(
-        start_position,
+        Vector3::ZERO,
         Color::new(138.0 / 255.0, 132. / 255.0, 170. / 255.0, 1.0),
         Color::new(88.0 / 255.0, 65. / 255.0, 226. / 255.0, 1.0),
     );
@@ -236,11 +233,7 @@ async fn run(app: Application, mut events: Events) {
     let mut lines = Lines::new(&gl);
     let mut user_lines = Lines::new(&gl);
 
-    let level_string = [
-        include_str!("levels/test.txt"),
-        include_str!("levels/city.txt"),
-        include_str!("levels/trees.txt"),
-    ];
+    let level_string = [include_str!("levels/start.txt")];
 
     let mut current_level = 0;
     load_level(
@@ -250,12 +243,10 @@ async fn run(app: Application, mut events: Events) {
         &mut mouse_playback,
         &mut lines,
         &mut user_lines,
-        &start_positions,
-        &mut start_position,
     );
 
     let mut ball = Ball {
-        position: start_position,
+        position: level.start_position,
         velocity: Vector3::ZERO,
         radius: 0.06,
         color: Color::new(1.0, 1.0, 1.0, 1.0),
@@ -403,7 +394,7 @@ async fn run(app: Application, mut events: Events) {
             },
             Event::Draw { .. } => {
                 // Check if the ball placeholder is clicked
-                if level.setup && mouse_down {
+                if level.setup && mouse_down && !editor.active {
                     let mouse_pos = screen_to_world(
                         mouse_position.x,
                         mouse_position.y,
@@ -411,7 +402,7 @@ async fn run(app: Application, mut events: Events) {
                         screen_width,
                         screen_height,
                     );
-                    if (mouse_pos - start_position).length() < ball.radius {
+                    if (mouse_pos - level.start_position).length() < ball.radius {
                         reset(&mut ball, &mut level);
                         ball.moving = true;
                     }
@@ -489,7 +480,7 @@ async fn run(app: Application, mut events: Events) {
                     &gl,
                     "u_model",
                     &mat4_from_trs(
-                        start_position,
+                        level.start_position,
                         Quaternion::IDENTITY,
                         Vector3::new_uniform(ball.radius),
                     ),
@@ -569,8 +560,6 @@ async fn run(app: Application, mut events: Events) {
                         &mut mouse_playback,
                         &mut lines,
                         &mut user_lines,
-                        &start_positions,
-                        &mut start_position,
                     );
                 }
                 if fade_out {
@@ -623,17 +612,13 @@ fn load_level(
     mouse_playback: &mut MousePlayback,
     lines: &mut Lines,
     user_lines: &mut Lines,
-    start_positions: &[Vector3],
-    start_position: &mut Vector3,
 ) {
     let data = data[current_level as usize];
-    *start_position = start_positions[current_level as usize];
-    level.start_position = *start_position;
     lines.clear();
     user_lines.clear();
     level.clear();
     mouse_playback.clear();
-    editor::load(mouse_playback, data);
+    editor::load(mouse_playback, level, data);
     mouse_playback.playing = true;
 }
 

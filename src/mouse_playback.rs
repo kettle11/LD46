@@ -128,7 +128,7 @@ impl MousePlayback {
 
             self.current_frame += frames;
             while self.current_state < self.state.len()
-                && self.state[self.current_state].frame < self.current_frame
+                && self.state[self.current_state].frame < self.current_frame 
             {
                 let current_state = &self.state[self.current_state];
                 // Play next action
