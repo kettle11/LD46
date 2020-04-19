@@ -290,6 +290,9 @@ async fn run(app: Application, mut events: Events) {
     let mut fade_in = false;
     let mut level_alpha = 1.0;
 
+    // hardcoded to not do regular transitions.
+    let mut prevent_transition = false;
+    // Actually enables edit capabilties
     let mut editor = Editor::new();
     loop {
         let event = events.next_event().await;
@@ -297,8 +300,16 @@ async fn run(app: Application, mut events: Events) {
             Event::KeyDown { key: Key::E, .. } => {
                 editor.active = !editor.active;
                 if editor.active {
+                    // To avoid accidentally losing work
+                    prevent_transition = true;
                     log!("EDITOR ACTIVE");
                 }
+            }
+            Event::KeyDown {
+                key: Key::Digit1, ..
+            } => {
+                prevent_transition = !prevent_transition;
+                log!("PREVENT TRANSITION: {:?}", prevent_transition);
             }
             _ => {}
         }
@@ -575,7 +586,7 @@ async fn run(app: Application, mut events: Events) {
                 }
 
                 // Kick off level transition
-                if level.complete {
+                if level.complete && !prevent_transition {
                     fade_out = true;
                 }
 

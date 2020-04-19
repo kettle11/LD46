@@ -29,7 +29,7 @@ impl Editor {
         screen_height: u32,
     ) {
         mouse_playback.recording = true;
-        user_lines.clear();
+        //  user_lines.clear();
         match event {
             Event::MouseMoved { x, y, .. } => {
                 if self.left_mouse_down {
@@ -94,6 +94,11 @@ impl Editor {
 
                 mouse_playback.play_until_end(level_lines, level);
                 log!("MOUSE PLAYBACK STATE: {:?}", mouse_playback.current_state);
+            }
+            Event::KeyDown { key: Key::A, .. } => {
+                mouse_playback.clear();
+                level.clear();
+                level_lines.clear();
             }
             Event::KeyDown { key: Key::C, .. } => {
                 // Add a collectible to the world.
