@@ -19,6 +19,7 @@ console_error_panic_hook = "0.1.6"
 [target.'cfg(target_arch = "wasm32")'.dependencies.web-sys]
 web-sys = "0.3.37"
 features = [
+    "AudioBuffer",
     "console",
     "Document",
     "HtmlElement",

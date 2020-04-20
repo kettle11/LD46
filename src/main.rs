@@ -22,6 +22,9 @@ use shader::*;
 #[allow(dead_code)]
 mod zmath;
 
+mod audio;
+use audio::*;
+
 use lines::*;
 use zmath::*;
 
@@ -146,6 +149,7 @@ struct Ball {
     color: Color,
     alpha: f32,
     moving: bool,
+    grounded: i32,
 }
 
 impl Ball {
@@ -163,12 +167,15 @@ impl Ball {
                 if velocity_along_collision < 0.0 {
                     self.velocity -= normal_of_collision * velocity_along_collision * 1.4;
                 }
+
+                self.grounded = 10;
                 self.position += normal_of_collision * 0.0001;
             }
         }
     }
     // Every two Vector3s in points is a line segment
     fn ball_physics(&mut self, points: &[Vector3], user_lines: &[Vector3]) {
+        self.grounded -= 1;
         self.velocity += Vector3::DOWN * 0.0001;
 
         self.check_lines(points);
@@ -176,8 +183,9 @@ impl Ball {
         self.position += self.velocity;
     }
 
-    fn check_for_collectibles(&mut self, level: &mut Level) {
+    fn check_for_collectibles(&mut self, level: &mut Level) -> (bool, f32) {
         let mut collected_count = 0;
+        let mut height = 0.0;
         for collectible in &mut level.collectibles {
             if !collectible.collected
                 && (self.position - collectible.position).length()
@@ -187,11 +195,15 @@ impl Ball {
                 collectible.alpha = 0.1;
                 collectible.collected = true;
                 collected_count += 1;
+                height = collectible.position.y;
             }
         }
 
         if collected_count > 0 {
             level.collect(collected_count);
+            (true, height)
+        } else {
+            (false, height)
         }
     }
 }
@@ -212,6 +224,7 @@ async fn run(app: Application, mut events: Events) {
     let (mut gl_context, gl) = gl::setup(&window);
     //  let beach_image = load_image(&gl, "beach.jpg").await.unwrap();
 
+    audio::setup();
     let vert = include_str!("shaders/vert.vs");
     let frag = include_str!("shaders/frag.fs");
 
@@ -268,7 +281,14 @@ async fn run(app: Application, mut events: Events) {
         color: Color::new(1.0, 1.0, 1.0, 1.0),
         alpha: 1.0,
         moving: false,
+        grounded: 0,
     };
+
+    let wind_sound = audio::load_audio("wind.wav").await.unwrap();
+    let ball_sound = audio::load_audio("ball_roll.wav").await.unwrap();
+
+    // Plays forever
+    ball_sound.play_ball_audio();
 
     load_level(
         &mut ball,
@@ -278,6 +298,7 @@ async fn run(app: Application, mut events: Events) {
         &mut mouse_playback,
         &mut lines,
         &mut user_lines,
+        &wind_sound,
     );
     let mut circle = Mesh::new(&gl);
     lines::update_mesh_with_circle(&gl, &mut circle, Vector3::ZERO, 1.0, 30);
@@ -306,12 +327,15 @@ async fn run(app: Application, mut events: Events) {
     let mut fade_in = false;
     let mut level_alpha = 1.0;
 
+    let bell_sound = audio::load_audio("bell1.wav").await.unwrap();
+
     // hardcoded to not do regular transitions.
     let mut prevent_transition = false;
     // Actually enables edit capabilties
     let mut editor = Editor::new();
     loop {
         let event = events.next_event().await;
+        /*
         match event {
             Event::KeyDown { key: Key::E, .. } => {
                 editor.active = !editor.active;
@@ -328,7 +352,7 @@ async fn run(app: Application, mut events: Events) {
                 log!("PREVENT TRANSITION: {:?}", prevent_transition);
             }
             _ => {}
-        }
+        }*/
         if editor.active {
             editor.update(
                 event.clone(),
@@ -366,6 +390,7 @@ async fn run(app: Application, mut events: Events) {
                 y,
                 ..
             } => {
+                audio::setup(); // Setup if not already setup
                 let mouse_pos = screen_to_world(x, y, &camera, screen_width, screen_height);
                 right_mouse_down = true;
             }
@@ -394,9 +419,10 @@ async fn run(app: Application, mut events: Events) {
                 mouse_down = false;
                 user_lines.end_segment();
             }
+            /*
             Event::KeyDown { key: Key::N, .. } => {
                 level.complete = true;
-            }
+            }*/
             Event::KeyDown {
                 key: Key::Space, ..
             } => {
@@ -464,8 +490,19 @@ async fn run(app: Application, mut events: Events) {
                 // First update physics
                 if level.setup && ball.moving {
                     ball.ball_physics(&lines.line_points, &user_lines.line_points);
-                    ball.check_for_collectibles(&mut level);
+                    let (hit_collectible, height) = ball.check_for_collectibles(&mut level);
+                    if hit_collectible {
+                        bell_sound.play(
+                            1.2 + (height as f64 / 2.0) * 2.0 + audio::random() * 0.2,
+                            2.0,
+                        );
+                    }
                 }
+
+                // Update ball roll audio
+                let ball_roll_audio = ball.velocity.length() as f64 / 0.02;
+
+                audio::ball_audio(ball_roll_audio * 3.5 * level_alpha, 0.2 + ball_roll_audio);
 
                 // Clear the screen.
                 unsafe {
@@ -476,7 +513,7 @@ async fn run(app: Application, mut events: Events) {
                 shader_program.use_program(&gl);
 
                 // Set the total level fade
-                shader_program.set_float(&gl, "u_fade", level_alpha);
+                shader_program.set_float(&gl, "u_fade", level_alpha as f32);
 
                 // Bind the camera's view and projection
                 shader_program.set_matrix(&gl, "u_view", &camera.view);
@@ -584,6 +621,7 @@ async fn run(app: Application, mut events: Events) {
                             &mut mouse_playback,
                             &mut lines,
                             &mut user_lines,
+                            &wind_sound,
                         );
                     } else {
                         load_level(
@@ -594,6 +632,7 @@ async fn run(app: Application, mut events: Events) {
                             &mut mouse_playback,
                             &mut lines,
                             &mut user_lines,
+                            &wind_sound,
                         );
                     }
                 }
@@ -650,7 +689,9 @@ fn load_level(
     mouse_playback: &mut MousePlayback,
     lines: &mut Lines,
     user_lines: &mut Lines,
+    wind: &Audio,
 ) {
+    log!("CURRENT LEVEL {:?}", current_level);
     let data = data[current_level as usize];
     lines.clear();
     user_lines.clear();
@@ -659,6 +700,10 @@ fn load_level(
     editor::load(mouse_playback, level, data);
     mouse_playback.playing = true;
     ball.position = level.start_position;
+
+    if current_level == 5 || current_level == 7 || current_level == 12 {
+        wind.play(1.0, 5.0);
+    }
 }
 
 fn screen_to_world(
