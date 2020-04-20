@@ -1,3 +1,6 @@
+Play it here:
+https://kettlecorn.itch.io/wonder
+
 # To build for web:
 
 Install Rust
