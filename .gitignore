@@ -1,4 +1,3 @@
 /target
 
-/web_build/*
 !/web_build/index.html
